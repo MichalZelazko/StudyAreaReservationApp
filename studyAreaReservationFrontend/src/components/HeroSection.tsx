@@ -3,7 +3,7 @@ import { ReactTyped } from "react-typed";
 const HeroSection = () => {
   return (
     <div className="flex flex-col md:flex-row items-center w-full md:gap-12">
-      <div className="w-full md:w-2/3 flex flex-col gap-7 p-6">
+      <div className="w-full md:w-2/3 flex flex-col gap-12 p-6">
         <h2 className="text-2xl md:text-4xl lg:text-6xl font-bold">
           Let's make studying on campus<br></br>{" "}
           <ReactTyped
@@ -21,7 +21,7 @@ const HeroSection = () => {
         </p>
         <a
           href="/buildings"
-          className="bg-blue-700 text-white px-6 py-3 rounded-xl font-medium text-xl hover:bg-white hover:text-blue-700 hover:border-2 hover:border-blue-700 transition-colors duration-300 w-fit"
+          className="bg-blue-700 text-white px-6 py-3 rounded-xl font-medium text-xl hover:bg-white hover:text-blue-700 hover:outline  hover:outline-blue-700 transition-colors duration-300 w-fit"
         >
           Look for a spot in your building now!
         </a>
