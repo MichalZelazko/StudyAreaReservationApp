@@ -3,16 +3,12 @@ import { Calendar, dateFnsLocalizer, SlotInfo } from "react-big-calendar";
 import { format, parse, startOfWeek, getDay } from "date-fns";
 import { enUS } from "date-fns/locale";
 import "react-big-calendar/lib/css/react-big-calendar.css";
-import { createClient } from '@supabase/supabase-js';
+import { createClient } from "@supabase/supabase-js";
 import { useParams } from "react-router-dom";
+import Modal from "react-modal";
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL!;
 const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY!;
-
-// Let's first verify the credentials are loaded
-console.log('Supabase URL exists:', !!supabaseUrl);
-console.log('Supabase Key exists:', !!supabaseKey);
-
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 const locales = {
@@ -40,31 +36,28 @@ interface Reservation {
   ReservationStart: string;
   ReservationEnd: string;
   IsConfirmed: boolean;
-  UserUUID: string;
+  UserEmail: string; // Assuming you have UserEmail instead of UserUUID
 }
 
-const AreaDetailsPage = () => {  // Added default value for testing
+const AreaDetailsPage = () => {
   const { id, areaId } = useParams<{ id: string; areaId: string }>();
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [selectedSlot, setSelectedSlot] = useState<{ start: Date; end: Date } | null>(null);
+  const [email, setEmail] = useState("");
+  const [agreeToTerms, setAgreeToTerms] = useState(false);
 
   useEffect(() => {
     const fetchReservations = async () => {
       try {
-        console.log('Fetching reservations for area:', areaId);
-        
         const { data, error } = await supabase
-          .from('Reservations')
-          .select('*')
-          .eq('AreaId', areaId);
+          .from("Reservations")
+          .select("*")
+          .eq("AreaId", areaId);
 
-        if (error) {
-          console.error('Supabase error details:', error);
-          throw error;
-        }
-
-        console.log('Fetched data:', data);
+        if (error) throw error;
 
         const transformedEvents = data.map((reservation: Reservation) => ({
           title: reservation.ReservationTitle,
@@ -72,77 +65,78 @@ const AreaDetailsPage = () => {  // Added default value for testing
           end: new Date(reservation.ReservationEnd),
         }));
 
-        console.log('Transformed events:', transformedEvents);
         setEvents(transformedEvents);
       } catch (err) {
-        console.error('Full error object:', err);
-        setError(err instanceof Error ? err.message : 'Failed to fetch reservations');
+        setError(err instanceof Error ? err.message : "Failed to fetch reservations");
       } finally {
         setLoading(false);
       }
     };
 
     fetchReservations();
-  }, [areaId]);
+  }, [areaId, modalOpen]);
 
-  // Rest of your code remains the same...
+  // Function to check if the selected slot overlaps with any existing events
+  const handleSelecting = (slot: { start: Date; end: Date }) => {
+    return !events.some(
+      (event) =>
+        (slot.start >= event.start && slot.start < event.end) || // Overlaps at start
+        (slot.end > event.start && slot.end <= event.end) || // Overlaps at end
+        (slot.start <= event.start && slot.end >= event.end) // Completely overlaps
+    );
+  };
 
-  const handleSelectSlot = async ({ start, end }: SlotInfo) => {
-    const title = window.prompt("Enter a title for the reservation:");
-    if (!title) return;
+  const handleSelectSlot = ({ start, end }: SlotInfo) => {
+    setSelectedSlot({ start, end });
+    setModalOpen(true);
+  };
+
+  const handleConfirmReservation = async () => {
+    if (!agreeToTerms) {
+      alert("You must agree to the terms and privacy policy to continue.");
+      return;
+    }
+
+    if (!email) {
+      alert("Please provide an email address.");
+      return;
+    }
 
     try {
-      // Add reservation to Supabase
-      const { error } = await supabase
-        .from('Reservations')
-        .insert([{
-          AreaId: areaId,
-          ReservationTitle: title,
-          ReservationStart: start.toISOString(),
-          ReservationEnd: end.toISOString(),
-          IsConfirmed: false,
-          // UserUUID: 'current-user-uuid' // Replace with actual user UUID from your auth system
-        }]);
+      // Insert the reservation into Supabase
+      const { data, error } = await supabase
+        .from("Reservations") // Replace with your actual table name
+        .insert([
+          {
+            AreaId: areaId,
+            ReservationTitle: "New Reservation", // Replace with actual title if needed
+            ReservationStart: selectedSlot?.start.toISOString(),
+            ReservationEnd: selectedSlot?.end.toISOString(),
+            IsConfirmed: true,
+            UserEmail: email, // Make sure this field exists in your table
+          },
+        ]);
 
-      if (error) throw error;
+      if (error) {
+        console.error("Supabase error details:", error); // Log the error for debugging
+        throw new Error("Failed to insert reservation");
+      }
 
-      // Add the new event to the calendar
-      setEvents(prevEvents => [...prevEvents, { title, start, end }]);
+      // Success: Update UI or notify the user
+      alert("Reservation confirmed!");
+      setModalOpen(false);
+      setSelectedSlot(null);
+      setEmail("");
+      setAgreeToTerms(false);
     } catch (err) {
-      console.error('Error adding reservation:', err);
-      alert('Failed to add reservation. Please try again.');
+      console.error("Error confirming reservation:", err);
+      alert("Failed to confirm reservation. Please try again.");
     }
-};
+  };
 
-  // Optional: Handle event deletion
-  const handleEventClick = async (event: Event) => {
-    const confirmDelete = window.confirm('Do you want to delete this reservation?');
-    if (!confirmDelete) return;
-
-    try {
-      const { error } = await supabase
-        .from('Reservations')
-        .delete()
-        .match({ 
-          AreaId: areaId,
-          ReservationTitle: event.title,
-          ReservationStart: event.start.toISOString(),
-          ReservationEnd: event.end.toISOString()
-        });
-
-      if (error) throw error;
-
-      setEvents(prevEvents => 
-        prevEvents.filter(e => 
-          !(e.title === event.title && 
-            e.start.getTime() === event.start.getTime() && 
-            e.end.getTime() === event.end.getTime())
-        )
-      );
-    } catch (err) {
-      console.error('Error deleting reservation:', err);
-      alert('Failed to delete reservation. Please try again.');
-    }
+  const handleModalClose = () => {
+    setModalOpen(false);
+    setSelectedSlot(null);
   };
 
   if (loading) return <div className="p-6">Loading...</div>;
@@ -153,20 +147,81 @@ const AreaDetailsPage = () => {  // Added default value for testing
       <h2 className="text-2xl font-bold">Area Availability</h2>
       <div className="mt-4 flex flex-col flex-grow">
         <h3 className="text-xl font-bold my-2">Availability Calendar</h3>
-        <div className="flex flex-grow items-center justify-center rounded-lg border p-4">
+        <div
+          className={`flex flex-grow items-center justify-center rounded-lg border p-4 ${
+            modalOpen ? "pointer-events-none" : ""
+          }`}
+        >
           <Calendar
             localizer={localizer}
             events={events}
             startAccessor="start"
             endAccessor="end"
-            selectable
+            selectable="ignoreEvents"  // Optional if you want to use custom selection logic
+            onSelecting={handleSelecting}  // Use the function to validate slot selection
             onSelectSlot={handleSelectSlot}
-            onSelectEvent={handleEventClick}
             defaultView="week"
             style={{ height: 500, width: "100%" }}
           />
         </div>
       </div>
+
+      <Modal
+        isOpen={modalOpen}
+        onRequestClose={handleModalClose}
+        contentLabel="Confirm Reservation"
+        ariaHideApp={false}
+        style={{
+          overlay: {
+            backgroundColor: "rgba(0, 0, 0, 0.5)", // Adds a semi-transparent overlay
+            zIndex: 999, // Ensures overlay covers the calendar
+          },
+          content: {
+            maxWidth: "500px",
+            margin: "auto",
+            padding: "20px",
+            zIndex: 1000, // Ensures modal is above the overlay
+          },
+        }}
+      >
+        <h2 className="text-xl font-bold">Confirm Reservation</h2>
+        <p>
+          <strong>Date:</strong> {selectedSlot && format(selectedSlot.start, "MMMM dd, yyyy")}
+        </p>
+        <p>
+          <strong>Time:</strong>{" "}
+          {selectedSlot &&
+            `${format(selectedSlot.start, "HH:mm")} - ${format(selectedSlot.end, "HH:mm")}`}
+        </p>
+        <input
+          type="email"
+          placeholder="Enter your email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          className="mt-2 w-full p-2 border rounded"
+        />
+        <label className="mt-4 flex items-center">
+          <input
+            type="checkbox"
+            checked={agreeToTerms}
+            onChange={() => setAgreeToTerms(!agreeToTerms)}
+            className="mr-2"
+          />
+          I understand the terms and privacy policy
+        </label>
+        <button
+          onClick={handleConfirmReservation}
+          className="mt-4 w-full bg-blue-500 text-white p-2 rounded"
+        >
+          Confirm Reservation
+        </button>
+        <button
+          onClick={handleModalClose}
+          className="mt-2 w-full bg-gray-500 text-white p-2 rounded"
+        >
+          Cancel
+        </button>
+      </Modal>
     </div>
   );
 };
