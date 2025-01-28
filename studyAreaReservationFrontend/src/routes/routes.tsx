@@ -1,8 +1,9 @@
 import HomePage from "@/pages/home";
 import BuildingsPage from "@/pages/buildings";
 import AreasPage from "@/pages/areas";
-import { Home, Building } from "lucide-react";
 import AreaDetailsPage from "@/pages/areas/AreaDetails";
+import CurrentReservationDisplay from "@/pages/display/displayReservation";
+import { Home, Building } from "lucide-react";
 
 export interface IRoute {
   path: string;
@@ -44,6 +45,11 @@ export const routes: IRoute[] = [
   {
     path: "/buildings/:id/area/:areaId",
     element: <AreaDetailsPage />,
+    inNav: false,
+  },
+  {
+    path: "/buildings/:id/area/:areaId/display",
+    element: <CurrentReservationDisplay />,
     inNav: false,
   },
 ];

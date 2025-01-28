@@ -12,7 +12,7 @@ export const sendConfirmationEmail = async (toEmail: string, reservationDetails:
     Messages: [
       {
         From: {
-          Email: 'nowak635lol@gmail.com', // Replace with your email
+          Email: '242134@edu.p.lodz.pl', // Replace with your email
           Name: 'Your Company Name',
         },
         To: [
@@ -41,3 +41,5 @@ export const sendConfirmationEmail = async (toEmail: string, reservationDetails:
     console.error('Error sending email:', error);
   }
 };
+
+export default mailjet;

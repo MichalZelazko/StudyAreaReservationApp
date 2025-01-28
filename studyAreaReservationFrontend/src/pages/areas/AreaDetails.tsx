@@ -6,6 +6,8 @@ import "react-big-calendar/lib/css/react-big-calendar.css";
 import { createClient } from "@supabase/supabase-js";
 import { useParams } from "react-router-dom";
 import Modal from "react-modal";
+import { sendConfirmationEmail } from './mailjetService'; // Import your email service
+import emailjs from 'emailjs-com'; // Import EmailJS
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL!;
 const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY!;
@@ -91,48 +93,75 @@ const AreaDetailsPage = () => {
     setModalOpen(true);
   };
 
-  const handleConfirmReservation = async () => {
-    if (!agreeToTerms) {
-      alert("You must agree to the terms and privacy policy to continue.");
-      return;
+const handleConfirmReservation = async () => {
+  if (!agreeToTerms) {
+    alert("You must agree to the terms and privacy policy to continue.");
+    return;
+  }
+
+  if (!email) {
+    alert("Please provide an email address.");
+    return;
+  }
+
+  try {
+    const reservationStart = selectedSlot?.start.toISOString();
+    const reservationEnd = selectedSlot?.end.toISOString();
+
+    // Insert the reservation into Supabase
+    const { data, error } = await supabase
+      .from("Reservations") // Replace with your actual table name
+      .insert([
+        {
+          AreaId: areaId,
+          ReservationTitle: "New Reservation", // Replace with actual title if needed
+          ReservationStart: reservationStart,
+          ReservationEnd: reservationEnd,
+          IsConfirmed: true,
+          UserEmail: email, // Make sure this field exists in your table
+        },
+      ])
+      .select()
+      .single();
+
+    if (error) {
+      console.error("Supabase error details:", error);
+      throw new Error("Failed to insert reservation");
     }
 
-    if (!email) {
-      alert("Please provide an email address.");
-      return;
-    }
+    // Prepare reservation details for email
+    const reservationDetails = {
+      date: format(selectedSlot!.start, "MMMM dd, yyyy"), // Human-readable date
+      time: `${format(selectedSlot!.start, "HH:mm")} - ${format(selectedSlot!.end, "HH:mm")}`,
+      reservationId: data.ReservationId,
+    };
 
-    try {
-      // Insert the reservation into Supabase
-      const { data, error } = await supabase
-        .from("Reservations") // Replace with your actual table name
-        .insert([
-          {
-            AreaId: areaId,
-            ReservationTitle: "New Reservation", // Replace with actual title if needed
-            ReservationStart: selectedSlot?.start.toISOString(),
-            ReservationEnd: selectedSlot?.end.toISOString(),
-            IsConfirmed: true,
-            UserEmail: email, // Make sure this field exists in your table
-          },
-        ]);
+    // Send email with EmailJS
+    await emailjs.send(
+      'service_kpu67ef', // Replace with your EmailJS service ID
+      'template_nkhuemn', // Replace with your EmailJS template ID
+      {
+        user_email: email, // Template variable for the user's email
+        reservation_date: reservationDetails.date, // Template variable for reservation date
+        reservation_time: reservationDetails.time, // Template variable for reservation time
+        reservation_id: reservationDetails.reservationId, // Template variable for reservation ID
+      },
+      'O44ivGo8Y108ZrKWA' // Replace with your EmailJS public key
+    );
 
-      if (error) {
-        console.error("Supabase error details:", error); // Log the error for debugging
-        throw new Error("Failed to insert reservation");
-      }
+    // Success: Update UI or notify the user
+    alert("Reservation confirmed! A confirmation email has been sent.");
+    setModalOpen(false);
+    setSelectedSlot(null);
+    setEmail("");
+    setAgreeToTerms(false);
+  } catch (err) {
+    console.error("Error confirming reservation:", err);
+    alert("Failed to confirm reservation. Please try again.");
+  }
+};
 
-      // Success: Update UI or notify the user
-      alert("Reservation confirmed!");
-      setModalOpen(false);
-      setSelectedSlot(null);
-      setEmail("");
-      setAgreeToTerms(false);
-    } catch (err) {
-      console.error("Error confirming reservation:", err);
-      alert("Failed to confirm reservation. Please try again.");
-    }
-  };
+  
 
   const handleModalClose = () => {
     setModalOpen(false);
