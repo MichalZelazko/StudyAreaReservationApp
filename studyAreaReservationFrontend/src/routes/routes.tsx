@@ -3,6 +3,7 @@ import BuildingsPage from "@/pages/buildings";
 import AreasPage from "@/pages/areas";
 import AreaDetailsPage from "@/pages/areas/AreaDetails";
 import CurrentReservationDisplay from "@/pages/display/displayReservation";
+import CancelReservationPage from "@/pages/reservation/cancelReservation"; // Import the new Cancel Reservation Page
 import { Home, Building } from "lucide-react";
 
 export interface IRoute {
@@ -51,5 +52,11 @@ export const routes: IRoute[] = [
     path: "/buildings/:id/area/:areaId/display",
     element: <CurrentReservationDisplay />,
     inNav: false,
+  },
+  // New route for Cancel Reservation page
+  {
+    path: "/cancel-reservation",
+    element: <CancelReservationPage />,
+    inNav: false, // Set inNav to false because it's not part of the main navigation
   },
 ];

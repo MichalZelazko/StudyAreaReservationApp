@@ -93,76 +93,84 @@ const AreaDetailsPage = () => {
     setModalOpen(true);
   };
 
-const handleConfirmReservation = async () => {
-  if (!agreeToTerms) {
-    alert("You must agree to the terms and privacy policy to continue.");
-    return;
-  }
-
-  if (!email) {
-    alert("Please provide an email address.");
-    return;
-  }
-
-  try {
-    const reservationStart = selectedSlot?.start.toISOString();
-    const reservationEnd = selectedSlot?.end.toISOString();
-
-    // Insert the reservation into Supabase
-    const { data, error } = await supabase
-      .from("Reservations") // Replace with your actual table name
-      .insert([
-        {
-          AreaId: areaId,
-          ReservationTitle: "New Reservation", // Replace with actual title if needed
-          ReservationStart: reservationStart,
-          ReservationEnd: reservationEnd,
-          IsConfirmed: true,
-          UserEmail: email, // Make sure this field exists in your table
-        },
-      ])
-      .select()
-      .single();
-
-    if (error) {
-      console.error("Supabase error details:", error);
-      throw new Error("Failed to insert reservation");
+  const handleConfirmReservation = async () => {
+    if (!agreeToTerms) {
+      alert("You must agree to the terms and privacy policy to continue.");
+      return;
     }
-
-    // Prepare reservation details for email
-    const reservationDetails = {
-      date: format(selectedSlot!.start, "MMMM dd, yyyy"), // Human-readable date
-      time: `${format(selectedSlot!.start, "HH:mm")} - ${format(selectedSlot!.end, "HH:mm")}`,
-      reservationId: data.ReservationId,
-    };
-
-    // Send email with EmailJS
-    await emailjs.send(
-      'service_kpu67ef', // Replace with your EmailJS service ID
-      'template_nkhuemn', // Replace with your EmailJS template ID
-      {
-        user_email: email, // Template variable for the user's email
-        reservation_date: reservationDetails.date, // Template variable for reservation date
-        reservation_time: reservationDetails.time, // Template variable for reservation time
-        reservation_id: reservationDetails.reservationId, // Template variable for reservation ID
-      },
-      'O44ivGo8Y108ZrKWA' // Replace with your EmailJS public key
-    );
-
-    // Success: Update UI or notify the user
-    alert("Reservation confirmed! A confirmation email has been sent.");
-    setModalOpen(false);
-    setSelectedSlot(null);
-    setEmail("");
-    setAgreeToTerms(false);
-  } catch (err) {
-    console.error("Error confirming reservation:", err);
-    alert("Failed to confirm reservation. Please try again.");
-  }
-};
-
   
-
+    if (!email) {
+      alert("Please provide an email address.");
+      return;
+    }
+  
+    try {
+      if (!selectedSlot || !selectedSlot.start || !selectedSlot.end) {
+        throw new Error("Selected slot is invalid.");
+      }
+  
+      const reservationStart = selectedSlot.start.toISOString();
+      const reservationEnd = selectedSlot.end.toISOString();
+      const confirmationCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+  
+      // Insert the reservation into Supabase
+      const { data, error } = await supabase
+        .from("Reservations")
+        .insert([
+          {
+            AreaId: Number(areaId),
+            ReservationTitle: "New Reservation",
+            ReservationStart: reservationStart,
+            ReservationEnd: reservationEnd,
+            IsConfirmed: false,
+            IsPresent: false,
+            UserEmail: email,
+            ConfirmationCode: confirmationCode,
+          },
+        ])
+        .select()
+        .single();
+  
+      if (error) {
+        console.error("Supabase error details:", error);
+        throw new Error("Failed to insert reservation");
+      }
+  
+      // Prepare reservation details
+      const reservationDetails = {
+        date: format(selectedSlot.start, "MMMM dd, yyyy"),
+        time: `${format(selectedSlot.start, "HH:mm")} - ${format(selectedSlot.end, "HH:mm")}`,
+        reservationId: data.ReservationId,
+        confirmationCode,
+      };
+  
+      // Send email using EmailJS
+      await emailjs.send(
+        'service_kpu67ef', // Service ID
+        'template_nkhuemn', // Template ID
+        {
+          user_email: email,
+          reservation_date: reservationDetails.date,
+          reservation_time: reservationDetails.time,
+          confirmation_code: reservationDetails.confirmationCode,
+          cancel_link: `${window.location.origin}/cancel-reservation?reservationId=${reservationDetails.reservationId}`, // Cancellation link
+        },
+        'O44ivGo8Y108ZrKWA' // Public Key
+      );
+  
+      alert("Reservation confirmed! A confirmation email has been sent.");
+      setModalOpen(false);
+      setSelectedSlot(null);
+      setEmail("");
+      setAgreeToTerms(false);
+    } catch (err) {
+      console.error("Error confirming reservation:", err);
+      alert("Failed to confirm reservation. Please try again.");
+    }
+  };
+  
+  
+  
   const handleModalClose = () => {
     setModalOpen(false);
     setSelectedSlot(null);
