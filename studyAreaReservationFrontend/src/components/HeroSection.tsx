@@ -3,7 +3,7 @@ import { ReactTyped } from "react-typed";
 const HeroSection = () => {
   return (
     <div className="flex flex-col md:flex-row items-center w-full md:gap-12">
-      <div className="w-full md:w-2/3 flex flex-col gap-12 p-6">
+      <div className="w-full md:w-2/3 flex flex-col gap-3 md:gap-12 p-6">
         <h2 className="text-2xl md:text-4xl lg:text-6xl font-bold">
           Let's make studying on campus<br></br>{" "}
           <ReactTyped

@@ -6,8 +6,8 @@ import "react-big-calendar/lib/css/react-big-calendar.css";
 import { createClient } from "@supabase/supabase-js";
 import { useParams } from "react-router-dom";
 import Modal from "react-modal";
-import { sendConfirmationEmail } from './mailjetService'; // Import your email service
-import emailjs from 'emailjs-com'; // Import EmailJS
+import { sendConfirmationEmail } from "./mailjetService"; // Import your email service
+import emailjs from "emailjs-com"; // Import EmailJS
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL!;
 const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY!;
@@ -47,9 +47,26 @@ const AreaDetailsPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
-  const [selectedSlot, setSelectedSlot] = useState<{ start: Date; end: Date } | null>(null);
+  const [selectedSlot, setSelectedSlot] = useState<{
+    start: Date;
+    end: Date;
+  } | null>(null);
   const [email, setEmail] = useState("");
   const [agreeToTerms, setAgreeToTerms] = useState(false);
+
+  const [screenWidth, setScreenWidth] = useState(window.innerWidth);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setScreenWidth(window.innerWidth);
+    };
+
+    window.addEventListener("resize", handleResize);
+
+    return () => {
+      window.removeEventListener("resize", handleResize);
+    };
+  }, []);
 
   useEffect(() => {
     const fetchReservations = async () => {
@@ -69,7 +86,9 @@ const AreaDetailsPage = () => {
 
         setEvents(transformedEvents);
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to fetch reservations");
+        setError(
+          err instanceof Error ? err.message : "Failed to fetch reservations"
+        );
       } finally {
         setLoading(false);
       }
@@ -98,21 +117,24 @@ const AreaDetailsPage = () => {
       alert("You must agree to the terms and privacy policy to continue.");
       return;
     }
-  
+
     if (!email) {
       alert("Please provide an email address.");
       return;
     }
-  
+
     try {
       if (!selectedSlot || !selectedSlot.start || !selectedSlot.end) {
         throw new Error("Selected slot is invalid.");
       }
-  
+
       const reservationStart = selectedSlot.start.toISOString();
       const reservationEnd = selectedSlot.end.toISOString();
-      const confirmationCode = Math.random().toString(36).substring(2, 8).toUpperCase();
-  
+      const confirmationCode = Math.random()
+        .toString(36)
+        .substring(2, 8)
+        .toUpperCase();
+
       // Insert the reservation into Supabase
       const { data, error } = await supabase
         .from("Reservations")
@@ -130,24 +152,27 @@ const AreaDetailsPage = () => {
         ])
         .select()
         .single();
-  
+
       if (error) {
         console.error("Supabase error details:", error);
         throw new Error("Failed to insert reservation");
       }
-  
+
       // Prepare reservation details
       const reservationDetails = {
         date: format(selectedSlot.start, "MMMM dd, yyyy"),
-        time: `${format(selectedSlot.start, "HH:mm")} - ${format(selectedSlot.end, "HH:mm")}`,
+        time: `${format(selectedSlot.start, "HH:mm")} - ${format(
+          selectedSlot.end,
+          "HH:mm"
+        )}`,
         reservationId: data.ReservationId,
         confirmationCode,
       };
-  
+
       // Send email using EmailJS
       await emailjs.send(
-        'service_kpu67ef', // Service ID
-        'template_nkhuemn', // Template ID
+        "service_kpu67ef", // Service ID
+        "template_nkhuemn", // Template ID
         {
           user_email: email,
           reservation_date: reservationDetails.date,
@@ -155,9 +180,9 @@ const AreaDetailsPage = () => {
           confirmation_code: reservationDetails.confirmationCode,
           cancel_link: `${window.location.origin}/cancel-reservation?reservationId=${reservationDetails.reservationId}`, // Cancellation link
         },
-        'O44ivGo8Y108ZrKWA' // Public Key
+        "O44ivGo8Y108ZrKWA" // Public Key
       );
-  
+
       alert("Reservation confirmed! A confirmation email has been sent.");
       setModalOpen(false);
       setSelectedSlot(null);
@@ -168,9 +193,7 @@ const AreaDetailsPage = () => {
       alert("Failed to confirm reservation. Please try again.");
     }
   };
-  
-  
-  
+
   const handleModalClose = () => {
     setModalOpen(false);
     setSelectedSlot(null);
@@ -194,11 +217,11 @@ const AreaDetailsPage = () => {
             events={events}
             startAccessor="start"
             endAccessor="end"
-            selectable="ignoreEvents"  // Optional if you want to use custom selection logic
-            onSelecting={handleSelecting}  // Use the function to validate slot selection
+            selectable="ignoreEvents" // Optional if you want to use custom selection logic
+            onSelecting={handleSelecting} // Use the function to validate slot selection
             onSelectSlot={handleSelectSlot}
-            defaultView="week"
-            style={{ height: 500, width: "100%" }}
+            defaultView={screenWidth < 768 ? "day" : "week"}
+            style={{ height: "100%", width: "100%" }}
           />
         </div>
       </div>
@@ -223,12 +246,16 @@ const AreaDetailsPage = () => {
       >
         <h2 className="text-xl font-bold">Confirm Reservation</h2>
         <p>
-          <strong>Date:</strong> {selectedSlot && format(selectedSlot.start, "MMMM dd, yyyy")}
+          <strong>Date:</strong>{" "}
+          {selectedSlot && format(selectedSlot.start, "MMMM dd, yyyy")}
         </p>
         <p>
           <strong>Time:</strong>{" "}
           {selectedSlot &&
-            `${format(selectedSlot.start, "HH:mm")} - ${format(selectedSlot.end, "HH:mm")}`}
+            `${format(selectedSlot.start, "HH:mm")} - ${format(
+              selectedSlot.end,
+              "HH:mm"
+            )}`}
         </p>
         <input
           type="email"

@@ -50,10 +50,10 @@ const AreasPage = () => {
   }
 
   return (
-    <div className="relative w-full max-w-4xl mx-auto">
+    <div className="relative w-full mx-auto">
       <svg
         viewBox="0 0 100 100"
-        className="w-full"
+        className="w-full min-w-[1000px] overflow-x-scroll"
         xmlns="http://www.w3.org/2000/svg"
       >
         <image href="/map.svg" width="100" height="100" />
@@ -63,27 +63,27 @@ const AreasPage = () => {
             <circle
               cx={area.x_position}
               cy={area.y_position}
-              r="2"
-              fill="red"
+              r="1"
+              fill="rgb(29 78 216)"
               className="cursor-pointer"
               onClick={() => {
                 const path = `/buildings/${building.id}/area/${area.id}`;
-                console.log("Navigating to:", path);
                 navigate(path);
               }}
             >
               <title>{area.name}</title>
             </circle>
 
-            {/* Area Name */}
             <text
-              x={area.x_position + 1}  // Position text to the right of the circle
-              y={area.y_position - 2}  // Slightly above the circle
-              fontSize="2"             // Try a small font size (e.g., 2px)
-              fill="black"
-              className="text-[2px]"   // Explicitly set to 2px for even smaller text
+              x={area.x_position}
+              y={area.y_position}
+              fontSize="1"
+              fill="white"
+              textAnchor="middle"
+              dominantBaseline="middle"
+              className="pointer-events-none" // Prevents text from intercepting click events
             >
-              {area.name}
+              {area.id}
             </text>
           </g>
         ))}
